@@ -19,7 +19,7 @@
             padding: 15px 20px;
         }
         .header h1 { font-size: 18px; color: #58a6ff; margin-bottom: 10px; }
-        .search-box { display: flex; gap: 10px; flex-wrap: wrap; }
+        .search-box { display: flex; gap: 10px; flex-wrap: wrap; align-items: center; }
         #search { 
             flex: 1; min-width: 200px;
             padding: 8px 12px; 
@@ -28,6 +28,17 @@
             font-family: inherit;
         }
         #search:focus { outline: none; border-color: #58a6ff; }
+        .search-mode {
+            display: flex; gap: 4px; background: #0d1117; 
+            border: 1px solid #30363d; border-radius: 6px; padding: 3px;
+        }
+        .search-mode-btn {
+            padding: 5px 12px; background: transparent; color: #8b949e;
+            border: none; border-radius: 4px; cursor: pointer; font-size: 12px;
+            font-family: inherit; transition: all 0.2s;
+        }
+        .search-mode-btn.active { background: #1f6feb; color: #fff; }
+        .search-mode-btn:hover:not(.active) { color: #c9d1d9; }
         .btn { 
             padding: 8px 16px; background: #238636; color: #fff; 
             border: none; border-radius: 6px; cursor: pointer; font-size: 13px;
@@ -36,6 +47,8 @@
         .btn:hover { background: #2ea043; }
         .btn.secondary { background: #1f6feb; }
         .btn.secondary:hover { background: #388bfd; }
+        .btn.danger { background: #da3633; }
+        .btn.danger:hover { background: #f85149; }
         .stats { 
             padding: 10px 20px; 
             background: #161b22; 
@@ -57,6 +70,7 @@
             border: 1px solid #30363d;
             border-radius: 8px; overflow: hidden;
         }
+        .file-item.has-match { border-color: #238636; box-shadow: 0 0 0 1px rgba(35, 134, 54, 0.3); }
         .file-header { 
             padding: 12px 15px; 
             background: #21262d;
@@ -66,6 +80,11 @@
         .file-header:hover { background: #30363d; }
         .file-name { color: #58a6ff; font-weight: 600; font-size: 13px; word-break: break-all; }
         .file-meta { color: #8b949e; font-size: 11px; margin-left: 8px; }
+        .match-badge {
+            background: #da3633; color: #fff;
+            padding: 2px 8px; border-radius: 12px;
+            font-size: 10px; margin-left: 8px; font-weight: 600;
+        }
         .file-content { 
             display: none;
             background: #0d1117;
@@ -87,7 +106,14 @@
         }
         .line { display: flex; }
         .line:hover { background: #161b22; }
-        .highlight { background: rgba(255, 215, 0, 0.3); color: #ffd700; padding: 0 2px; border-radius: 2px; }
+        .line.match-line { background: rgba(35, 134, 54, 0.15); }
+        .highlight { 
+            background: rgba(218, 54, 51, 0.4); 
+            color: #ff7b72; 
+            padding: 0 2px; 
+            border-radius: 2px;
+            font-weight: 600;
+        }
         .loading { text-align: center; padding: 40px; color: #8b949e; }
         .error { color: #f85149; padding: 20px; background: #3d0d0d; border-radius: 8px; margin: 10px 20px; }
         .spinner { display: inline-block; width: 16px; height: 16px; border: 2px solid #30363d; border-top-color: #58a6ff; border-radius: 50%; animation: spin 1s linear infinite; margin-right: 8px; }
@@ -101,6 +127,42 @@
             padding: 2px 8px; border-radius: 12px; 
             font-size: 10px; margin-left: 8px;
         }
+        .search-progress {
+            position: fixed; bottom: 20px; right: 20px;
+            background: #161b22; border: 1px solid #30363d;
+            padding: 12px 16px; border-radius: 8px;
+            font-size: 12px; color: #c9d1d9;
+            z-index: 1000; display: none;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.5);
+        }
+        .search-progress.active { display: block; }
+        .progress-bar {
+            width: 200px; height: 4px; background: #30363d;
+            border-radius: 2px; margin-top: 8px; overflow: hidden;
+        }
+        .progress-fill {
+            height: 100%; background: #58a6ff;
+            border-radius: 2px; transition: width 0.3s;
+        }
+        .match-preview {
+            background: #0d1117;
+            border-top: 1px solid #30363d;
+            padding: 8px 15px;
+            font-size: 11px;
+            color: #8b949e;
+            max-height: 100px;
+            overflow-y: auto;
+        }
+        .match-preview-line {
+            padding: 2px 0;
+            white-space: pre;
+            font-family: inherit;
+        }
+        .match-preview-line .preview-num {
+            color: #484f58;
+            margin-right: 8px;
+            user-select: none;
+        }
         ::-webkit-scrollbar { width: 8px; height: 8px; }
         ::-webkit-scrollbar-track { background: #0d1117; }
         ::-webkit-scrollbar-thumb { background: #30363d; border-radius: 4px; }
@@ -111,9 +173,14 @@
     <div class="header">
         <h1>🔧 FunPay Tools — Source Code Viewer</h1>
         <div class="search-box">
-            <input type="text" id="search" placeholder="🔍 Поиск по имени файла... (Ctrl+F для поиска в содержимом)" autocomplete="off">
+            <input type="text" id="search" placeholder="🔍 Введите запрос..." autocomplete="off">
+            <div class="search-mode">
+                <button class="search-mode-btn active" onclick="setSearchMode('name')" id="mode-name">📁 Файлы</button>
+                <button class="search-mode-btn" onclick="setSearchMode('content')" id="mode-content">📄 В коде</button>
+            </div>
             <button class="btn" onclick="expandAll()">📂 Развернуть всё</button>
             <button class="btn secondary" onclick="collapseAll()">📁 Свернуть всё</button>
+            <button class="btn danger" onclick="clearSearch()" id="clear-btn" style="display:none">❌ Очистить</button>
         </div>
     </div>
     
@@ -126,9 +193,14 @@
         <div class="loading">⏳ Загрузка дерева файлов из репозитория...</div>
     </div>
 
+    <div class="search-progress" id="search-progress">
+        <div>🔍 Поиск по содержимому... <span id="search-count">0</span> файлов</div>
+        <div class="progress-bar"><div class="progress-fill" id="progress-fill" style="width:0%"></div></div>
+    </div>
+
     <script>
         // ═══════════════════════════════════════════════════════
-        // КОНФИГУРАЦИЯ — УЖЕ НАСТРОЕНО ДЛЯ ТВОЕГО РЕПОЗИТОРИЯ
+        // КОНФИГУРАЦИЯ
         // ═══════════════════════════════════════════════════════
         const CONFIG = {
             owner: 'proggmer',
@@ -140,7 +212,11 @@
         
         let allFiles = [];
         let fileContents = {};
+        let fileMatches = {};      // { path: [lineNumbers] }
         let currentExtFilter = '';
+        let searchMode = 'name';   // 'name' | 'content'
+        let isSearching = false;
+        let searchAbortController = null;
         
         // ═══════════════════════════════════════════════════════
         // ЗАГРУЗКА ДЕРЕВА ФАЙЛОВ
@@ -196,11 +272,85 @@
         }
         
         // ═══════════════════════════════════════════════════════
+        // ГЛОБАЛЬНЫЙ ПОИСК ПО СОДЕРЖИМОМУ
+        // ═══════════════════════════════════════════════════════
+        async function searchInAllFiles(searchTerm) {
+            if (!searchTerm || searchTerm.length < 2) {
+                fileMatches = {};
+                renderFileList();
+                return;
+            }
+            
+            // Отменяем предыдущий поиск
+            if (searchAbortController) {
+                searchAbortController.abort();
+            }
+            searchAbortController = new AbortController();
+            const signal = searchAbortController.signal;
+            
+            isSearching = true;
+            fileMatches = {};
+            
+            const progressEl = document.getElementById('search-progress');
+            const progressFill = document.getElementById('progress-fill');
+            const searchCount = document.getElementById('search-count');
+            progressEl.classList.add('active');
+            
+            const searchLower = searchTerm.toLowerCase();
+            const filesToSearch = allFiles.filter(f => currentExtFilter === '' || f.path.endsWith(currentExtFilter));
+            const total = filesToSearch.length;
+            let processed = 0;
+            
+            // Пакетная обработка для скорости
+            const BATCH_SIZE = 5;
+            
+            for (let i = 0; i < total; i += BATCH_SIZE) {
+                if (signal.aborted) return;
+                
+                const batch = filesToSearch.slice(i, i + BATCH_SIZE);
+                await Promise.all(batch.map(async (file) => {
+                    if (signal.aborted) return;
+                    
+                    try {
+                        const content = await loadFileContent(file.path);
+                        if (signal.aborted) return;
+                        
+                        const lines = content.split('\n');
+                        const matches = [];
+                        
+                        lines.forEach((line, idx) => {
+                            if (line.toLowerCase().includes(searchLower)) {
+                                matches.push(idx + 1);
+                            }
+                        });
+                        
+                        if (matches.length > 0) {
+                            fileMatches[file.path] = matches;
+                        }
+                    } catch (e) {
+                        // Игнорируем ошибки отдельных файлов
+                    }
+                }));
+                
+                processed += batch.length;
+                searchCount.textContent = `${processed}/${total}`;
+                progressFill.style.width = `${(processed / total) * 100}%`;
+            }
+            
+            progressEl.classList.remove('active');
+            isSearching = false;
+            
+            if (!signal.aborted) {
+                renderFileList(searchTerm);
+            }
+        }
+        
+        // ═══════════════════════════════════════════════════════
         // ОТОБРАЖЕНИЕ СПИСКА ФАЙЛОВ
         // ═══════════════════════════════════════════════════════
         function renderFileList(searchTerm = '') {
             const filesDiv = document.getElementById('files');
-            const search = searchTerm.toLowerCase();
+            const search = searchTerm.toLowerCase().trim();
             
             let filtered = allFiles;
             
@@ -211,12 +361,18 @@
             
             // Фильтр по поиску
             if (search) {
-                filtered = filtered.filter(f => f.path.toLowerCase().includes(search));
+                if (searchMode === 'name') {
+                    // Поиск по имени файла
+                    filtered = filtered.filter(f => f.path.toLowerCase().includes(search));
+                } else {
+                    // Поиск по содержимому — показываем только файлы с совпадениями
+                    filtered = filtered.filter(f => fileMatches[f.path]);
+                }
             }
             
             if (filtered.length === 0) {
                 filesDiv.innerHTML = '<div class="no-results">📭 Ничего не найдено</div>';
-                updateStatText(filtered.length);
+                updateStatText(filtered.length, search);
                 return;
             }
             
@@ -226,20 +382,44 @@
                 const dirPath = file.path.substring(0, file.path.lastIndexOf('/') + 1);
                 const size = formatBytes(file.size);
                 const safeId = hashPath(file.path);
+                const hasMatch = fileMatches[file.path] && fileMatches[file.path].length > 0;
+                const matchCount = hasMatch ? fileMatches[file.path].length : 0;
+                
+                // Превью совпадений для режима поиска по содержимому
+                let matchPreview = '';
+                if (searchMode === 'content' && hasMatch && search) {
+                    const content = fileContents[file.path] || '';
+                    const lines = content.split('\n');
+                    const previewLines = [];
+                    
+                    fileMatches[file.path].slice(0, 3).forEach(lineNum => {
+                        const line = lines[lineNum - 1] || '';
+                        const trimmed = line.trim().substring(0, 80);
+                        previewLines.push(`<div class="match-preview-line"><span class="preview-num">${lineNum}:</span>${escapeHtml(trimmed)}${trimmed.length >= 80 ? '...' : ''}</div>`);
+                    });
+                    
+                    if (matchCount > 3) {
+                        previewLines.push(`<div class="match-preview-line" style="color:#58a6ff">... и ещё ${matchCount - 3} совпадений</div>`);
+                    }
+                    
+                    matchPreview = `<div class="match-preview">${previewLines.join('')}</div>`;
+                }
                 
                 return `
-                    <div class="file-item" data-path="${escapeHtml(file.path)}">
-                        <div class="file-header" onclick="toggleFile('${safeId}', '${escapeHtml(file.path)}')">
+                    <div class="file-item ${hasMatch ? 'has-match' : ''}" data-path="${escapeHtml(file.path)}">
+                        <div class="file-header" onclick="toggleFile('${safeId}', '${escapeHtml(file.path)}', '${escapeHtml(search)}')">
                             <div style="flex:1;min-width:0">
                                 <div class="path-breadcrumb">${dirPath ? escapeHtml(dirPath) : 'root/'}</div>
                                 <div style="display:flex;align-items:center;flex-wrap:wrap">
                                     <span class="file-name">${escapeHtml(fileName)}</span>
                                     <span class="file-meta">${ext.toUpperCase()}</span>
                                     <span class="size-badge">${size}</span>
+                                    ${hasMatch ? `<span class="match-badge">${matchCount} совпадений</span>` : ''}
                                 </div>
                             </div>
                             <span class="chevron" id="chevron-${safeId}">▼</span>
                         </div>
+                        ${matchPreview}
                         <div class="file-content" id="content-${safeId}">
                             <div class="loading" style="padding:20px"><span class="spinner"></span> Загрузка...</div>
                         </div>
@@ -247,13 +427,13 @@
                 `;
             }).join('');
             
-            updateStatText(filtered.length);
+            updateStatText(filtered.length, search);
         }
         
         // ═══════════════════════════════════════════════════════
         // ПЕРЕКЛЮЧЕНИЕ ФАЙЛА
         // ═══════════════════════════════════════════════════════
-        async function toggleFile(safeId, path) {
+        async function toggleFile(safeId, path, searchTerm = '') {
             const contentDiv = document.getElementById(`content-${safeId}`);
             const chevron = document.getElementById(`chevron-${safeId}`);
             const isActive = contentDiv.classList.contains('active');
@@ -270,33 +450,80 @@
             }
             
             const content = await loadFileContent(path);
-            const search = document.getElementById('search').value.toLowerCase();
+            const search = searchTerm || document.getElementById('search').value.toLowerCase().trim();
             
-            contentDiv.innerHTML = `<pre>${renderCode(content, search)}</pre>`;
+            contentDiv.innerHTML = `<pre>${renderCode(content, search, path)}</pre>`;
             contentDiv.classList.add('active');
             chevron.classList.add('open');
+            
+            // Автоскролл к первому совпадению
+            if (search && fileMatches[path]) {
+                setTimeout(() => {
+                    const firstMatch = contentDiv.querySelector('.match-line');
+                    if (firstMatch) {
+                        firstMatch.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                    }
+                }, 100);
+            }
         }
         
         // ═══════════════════════════════════════════════════════
         // РЕНДЕР КОДА С ПОДСВЕТКОЙ
         // ═══════════════════════════════════════════════════════
-        function renderCode(code, searchTerm) {
-            const lines = code.split('\\n');
+        function renderCode(code, searchTerm, path) {
+            const lines = code.split('\n');
+            const matchLines = fileMatches[path] || [];
+            const searchLower = searchTerm.toLowerCase();
             let result = '';
             
             lines.forEach((line, i) => {
+                const lineNum = i + 1;
+                const isMatchLine = matchLines.includes(lineNum);
                 let processed = escapeHtml(line);
                 
-                // Подсветка поиска
-                if (searchTerm && searchTerm.length > 1) {
+                // Подсветка поиска по содержимому
+                if (searchTerm && searchTerm.length > 1 && isMatchLine) {
                     const regex = new RegExp(`(${escapeRegex(searchTerm)})`, 'gi');
                     processed = processed.replace(regex, '<span class="highlight">$1</span>');
                 }
                 
-                result += `<div class="line"><span class="line-num">${i + 1}</span><span style="white-space:pre">${processed}</span></div>`;
+                const lineClass = isMatchLine ? 'line match-line' : 'line';
+                result += `<div class="${lineClass}"><span class="line-num">${lineNum}</span><span style="white-space:pre">${processed}</span></div>`;
             });
             
             return result;
+        }
+        
+        // ═══════════════════════════════════════════════════════
+        // РЕЖИМЫ ПОИСКА
+        // ═══════════════════════════════════════════════════════
+        function setSearchMode(mode) {
+            searchMode = mode;
+            document.querySelectorAll('.search-mode-btn').forEach(btn => btn.classList.remove('active'));
+            document.getElementById(`mode-${mode}`).classList.add('active');
+            
+            const searchInput = document.getElementById('search');
+            if (mode === 'name') {
+                searchInput.placeholder = '🔍 Поиск по имени файла...';
+            } else {
+                searchInput.placeholder = '🔍 Поиск в коде (мин. 2 символа)...';
+            }
+            
+            // Перезапускаем поиск
+            const currentValue = searchInput.value.trim();
+            if (currentValue) {
+                applyFilters();
+            }
+        }
+        
+        function clearSearch() {
+            document.getElementById('search').value = '';
+            fileMatches = {};
+            if (searchAbortController) {
+                searchAbortController.abort();
+            }
+            renderFileList();
+            document.getElementById('clear-btn').style.display = 'none';
         }
         
         // ═══════════════════════════════════════════════════════
@@ -330,13 +557,31 @@
         // ═══════════════════════════════════════════════════════
         let searchTimeout;
         document.getElementById('search').addEventListener('input', (e) => {
+            const value = e.target.value.trim();
+            document.getElementById('clear-btn').style.display = value ? 'inline-block' : 'none';
+            
             clearTimeout(searchTimeout);
-            searchTimeout = setTimeout(() => applyFilters(), 200);
+            
+            if (searchMode === 'content' && value.length >= 2) {
+                // Для поиска по содержимому — debounce побольше
+                searchTimeout = setTimeout(() => searchInAllFiles(value), 400);
+            } else if (searchMode === 'name') {
+                searchTimeout = setTimeout(() => applyFilters(), 200);
+            } else {
+                // Менее 2 символов в режиме контента — сброс
+                fileMatches = {};
+                renderFileList();
+            }
         });
         
         function applyFilters() {
-            const search = document.getElementById('search').value;
-            renderFileList(search);
+            const search = document.getElementById('search').value.trim();
+            
+            if (searchMode === 'content' && search.length >= 2) {
+                searchInAllFiles(search);
+            } else {
+                renderFileList(search);
+            }
         }
         
         // ═══════════════════════════════════════════════════════
@@ -353,7 +598,7 @@
         }
         
         function escapeRegex(str) {
-            return str.replace(/[.*+?^${}()|[\\]\\\\]/g, '\\\\$&');
+            return str.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
         }
         
         function formatBytes(bytes) {
@@ -363,11 +608,16 @@
         }
         
         function expandAll() {
-            allFiles.forEach(f => {
+            const visibleFiles = searchMode === 'content' && Object.keys(fileMatches).length > 0
+                ? allFiles.filter(f => fileMatches[f.path])
+                : allFiles;
+                
+            visibleFiles.forEach(f => {
                 const safeId = hashPath(f.path);
                 const contentDiv = document.getElementById(`content-${safeId}`);
                 if (contentDiv && !contentDiv.classList.contains('active')) {
-                    toggleFile(safeId, f.path);
+                    const search = document.getElementById('search').value.trim();
+                    toggleFile(safeId, f.path, search);
                 }
             });
         }
@@ -385,10 +635,23 @@
                 `Репозиторий: <a href="https://github.com/${CONFIG.owner}/${CONFIG.repo}" style="color:#58a6ff" target="_blank">${CONFIG.owner}/${CONFIG.repo}</a>`;
         }
         
-        function updateStatText(filteredCount) {
+        function updateStatText(filteredCount, searchTerm = '') {
             const total = allFiles.length;
-            if (filteredCount === total) return;
-            document.getElementById('stat-text').innerHTML += ` | Показано: <strong>${filteredCount}</strong> из ${total}`;
+            const base = document.getElementById('stat-text').innerHTML;
+            
+            let extra = '';
+            if (filteredCount !== total) {
+                extra = ` | Показано: <strong>${filteredCount}</strong> из ${total}`;
+            }
+            if (searchTerm && searchMode === 'content') {
+                const matchFiles = Object.keys(fileMatches).length;
+                extra += ` | Совпадения в <strong>${matchFiles}</strong> файлах`;
+            }
+            
+            // Обновляем только если есть изменения
+            if (extra) {
+                document.getElementById('stat-text').innerHTML = base.split(' | Показано:')[0].split(' | Совпадения')[0] + extra;
+            }
         }
         
         // Горячие клавиши
@@ -398,7 +661,11 @@
                 document.getElementById('search').focus();
             }
             if (e.key === 'Escape') {
-                collapseAll();
+                if (document.getElementById('search') === document.activeElement) {
+                    document.getElementById('search').blur();
+                } else {
+                    collapseAll();
+                }
             }
         });
         
@@ -406,4 +673,4 @@
         loadRepo();
     </script>
 </body>
-</html>'''
+</html>
