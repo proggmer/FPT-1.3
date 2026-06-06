@@ -1,1 +1,1 @@
-1
+https://funpaybot-fpt.vercel.app/
