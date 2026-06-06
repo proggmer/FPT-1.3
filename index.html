@@ -1,13 +1,13 @@
-<!DOCTYPE html>
+html_content = '''<!DOCTYPE html>
 <html lang="ru">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>FunPay Tools Source</title>
+    <title>FunPay Tools Source Viewer</title>
     <style>
         * { margin: 0; padding: 0; box-sizing: border-box; }
         body { 
-            font-family: 'SF Mono', Monaco, monospace; 
+            font-family: 'SF Mono', Monaco, 'Cascadia Code', monospace; 
             background: #0d1117; 
             color: #c9d1d9; 
             line-height: 1.6;
@@ -19,22 +19,40 @@
             padding: 15px 20px;
         }
         .header h1 { font-size: 18px; color: #58a6ff; margin-bottom: 10px; }
-        .search-box { display: flex; gap: 10px; }
+        .search-box { display: flex; gap: 10px; flex-wrap: wrap; }
         #search { 
-            flex: 1; padding: 8px 12px; 
+            flex: 1; min-width: 200px;
+            padding: 8px 12px; 
             background: #0d1117; border: 1px solid #30363d; 
             color: #c9d1d9; border-radius: 6px; font-size: 14px;
+            font-family: inherit;
         }
         #search:focus { outline: none; border-color: #58a6ff; }
+        .btn { 
+            padding: 8px 16px; background: #238636; color: #fff; 
+            border: none; border-radius: 6px; cursor: pointer; font-size: 13px;
+            font-family: inherit;
+        }
+        .btn:hover { background: #2ea043; }
+        .btn.secondary { background: #1f6feb; }
+        .btn.secondary:hover { background: #388bfd; }
         .stats { 
             padding: 10px 20px; 
             background: #161b22; 
             border-bottom: 1px solid #30363d;
             font-size: 12px; color: #8b949e;
         }
-        .file-list { padding: 10px 20px; }
+        .filter-btns { display: flex; gap: 6px; margin-top: 8px; flex-wrap: wrap; }
+        .filter-btn { 
+            padding: 4px 10px; background: #21262d; 
+            border: 1px solid #30363d; color: #8b949e;
+            border-radius: 20px; cursor: pointer; font-size: 11px;
+            font-family: inherit;
+        }
+        .filter-btn.active { background: #1f6feb; color: #fff; border-color: #1f6feb; }
+        .file-list { padding: 10px 20px; padding-bottom: 100px; }
         .file-item { 
-            margin: 8px 0; 
+            margin: 6px 0; 
             background: #161b22; 
             border: 1px solid #30363d;
             border-radius: 8px; overflow: hidden;
@@ -46,98 +64,100 @@
             transition: background 0.2s;
         }
         .file-header:hover { background: #30363d; }
-        .file-name { color: #58a6ff; font-weight: 600; font-size: 14px; }
-        .file-meta { color: #8b949e; font-size: 12px; }
+        .file-name { color: #58a6ff; font-weight: 600; font-size: 13px; word-break: break-all; }
+        .file-meta { color: #8b949e; font-size: 11px; margin-left: 8px; }
         .file-content { 
             display: none;
-            padding: 15px; 
             background: #0d1117;
             overflow-x: auto;
-            max-height: 600px;
+            max-height: 70vh;
             overflow-y: auto;
         }
         .file-content.active { display: block; }
         .file-content pre { 
-            white-space: pre-wrap; word-wrap: break-word;
-            font-size: 13px; line-height: 1.5;
+            white-space: pre; 
+            font-size: 12px; line-height: 1.5;
+            margin: 0; padding: 15px;
         }
         .line-num { 
-            display: inline-block; width: 40px; 
+            display: inline-block; width: 45px; 
             color: #484f58; text-align: right; 
             margin-right: 15px; user-select: none;
+            flex-shrink: 0;
         }
-        .highlight { background: #ffd700; color: #000; padding: 0 2px; border-radius: 2px; }
+        .line { display: flex; }
+        .line:hover { background: #161b22; }
+        .highlight { background: rgba(255, 215, 0, 0.3); color: #ffd700; padding: 0 2px; border-radius: 2px; }
         .loading { text-align: center; padding: 40px; color: #8b949e; }
-        .error { color: #f85149; padding: 20px; }
-        .btn { 
-            padding: 6px 12px; background: #238636; color: #fff; 
-            border: none; border-radius: 6px; cursor: pointer; font-size: 12px;
+        .error { color: #f85149; padding: 20px; background: #3d0d0d; border-radius: 8px; margin: 10px 20px; }
+        .spinner { display: inline-block; width: 16px; height: 16px; border: 2px solid #30363d; border-top-color: #58a6ff; border-radius: 50%; animation: spin 1s linear infinite; margin-right: 8px; }
+        @keyframes spin { to { transform: rotate(360deg); } }
+        .no-results { text-align: center; padding: 40px; color: #8b949e; }
+        .chevron { transition: transform 0.2s; color: #8b949e; font-size: 12px; }
+        .chevron.open { transform: rotate(180deg); }
+        .path-breadcrumb { color: #8b949e; font-size: 11px; margin-bottom: 4px; }
+        .size-badge { 
+            background: #238636; color: #fff; 
+            padding: 2px 8px; border-radius: 12px; 
+            font-size: 10px; margin-left: 8px;
         }
-        .btn:hover { background: #2ea043; }
-        .filter-btns { display: flex; gap: 8px; margin-bottom: 10px; flex-wrap: wrap; }
-        .filter-btn { 
-            padding: 4px 10px; background: #21262d; 
-            border: 1px solid #30363d; color: #8b949e;
-            border-radius: 20px; cursor: pointer; font-size: 12px;
-        }
-        .filter-btn.active { background: #1f6feb; color: #fff; border-color: #1f6feb; }
+        ::-webkit-scrollbar { width: 8px; height: 8px; }
+        ::-webkit-scrollbar-track { background: #0d1117; }
+        ::-webkit-scrollbar-thumb { background: #30363d; border-radius: 4px; }
+        ::-webkit-scrollbar-thumb:hover { background: #484f58; }
     </style>
 </head>
 <body>
     <div class="header">
         <h1>🔧 FunPay Tools — Source Code Viewer</h1>
         <div class="search-box">
-            <input type="text" id="search" placeholder="Поиск по всем файлам... (Ctrl+F)" autocomplete="off">
-            <button class="btn" onclick="expandAll()">Развернуть всё</button>
-            <button class="btn" onclick="collapseAll()">Свернуть всё</button>
+            <input type="text" id="search" placeholder="🔍 Поиск по имени файла... (Ctrl+F для поиска в содержимом)" autocomplete="off">
+            <button class="btn" onclick="expandAll()">📂 Развернуть всё</button>
+            <button class="btn secondary" onclick="collapseAll()">📁 Свернуть всё</button>
         </div>
     </div>
     
-    <div class="stats" id="stats">
+    <div class="stats">
+        <span id="stat-text"><span class="spinner"></span> Загрузка файлов...</span>
         <div class="filter-btns" id="filters"></div>
-        <span id="stat-text">Загрузка...</span>
     </div>
     
-    <div class="file-list" id="files">
-        <div class="loading">⏳ Загрузка файлов из репозитория...</div>
+    <div id="files">
+        <div class="loading">⏳ Загрузка дерева файлов из репозитория...</div>
     </div>
 
     <script>
         // ═══════════════════════════════════════════════════════
-        // НАСТРОЙКИ — ЗАМЕНИ НА СВОИ
+        // КОНФИГУРАЦИЯ — УЖЕ НАСТРОЕНО ДЛЯ ТВОЕГО РЕПОЗИТОРИЯ
         // ═══════════════════════════════════════════════════════
         const CONFIG = {
-            owner: 'proggmer',      // ← твой GitHub username
-            repo: 'FPT-1.3',       // ← название репозитория
-            branch: 'main',          // ← ветка (main или master)
-            // Или если репозиторий приватный — используй raw URL:
-            // rawBase: 'https://raw.githubusercontent.com/ТВОЙ_НИК/ТВОЙ_РЕПО/main/'
+            owner: 'proggmer',
+            repo: 'FPT-1.3',
+            branch: 'main'
         };
         
-        // Расширения файлов для отображения
-        const CODE_EXTS = ['.kt', '.java', '.js', '.xml', '.md', '.gradle', '.kts', '.properties', '.json', '.yml', '.yaml', '.txt', '.html', '.css', '.cpp', '.h', '.c'];
+        const CODE_EXTS = ['.kt', '.java', '.js', '.xml', '.md', '.gradle', '.kts', '.properties', '.json', '.yml', '.yaml', '.txt', '.html', '.css', '.cpp', '.h', '.c', '.pro'];
         
         let allFiles = [];
         let fileContents = {};
+        let currentExtFilter = '';
         
         // ═══════════════════════════════════════════════════════
-        // GitHub API — получение дерева файлов
+        // ЗАГРУЗКА ДЕРЕВА ФАЙЛОВ
         // ═══════════════════════════════════════════════════════
         async function loadRepo() {
             const filesDiv = document.getElementById('files');
             
             try {
-                // Получаем дерево файлов репозитория
                 const treeUrl = `https://api.github.com/repos/${CONFIG.owner}/${CONFIG.repo}/git/trees/${CONFIG.branch}?recursive=1`;
                 const response = await fetch(treeUrl);
                 
                 if (!response.ok) {
-                    throw new Error(`GitHub API error: ${response.status} — проверь owner/repo в CONFIG`);
+                    throw new Error(`GitHub API error: ${response.status}`);
                 }
                 
                 const data = await response.json();
                 
-                // Фильтруем только файлы с нужными расширениями
                 allFiles = data.tree
                     .filter(item => item.type === 'blob')
                     .filter(item => CODE_EXTS.some(ext => item.path.endsWith(ext)))
@@ -146,18 +166,18 @@
                 renderFileList();
                 updateStats();
                 
-                // Предзагружаем первые 5 файлов
-                allFiles.slice(0, 5).forEach(f => loadFileContent(f.path));
-                
             } catch (err) {
-                filesDiv.innerHTML = `<div class="error">❌ Ошибка: ${err.message}<br><br>
-                    Проверь настройки CONFIG в начале файла.<br>
-                    Убедись что репозиторий публичный, или используй токен.</div>`;
+                filesDiv.innerHTML = `<div class="error">❌ Ошибка загрузки: ${err.message}<br><br>
+                    Возможные причины:<br>
+                    • Репозиторий не публичный<br>
+                    • Неправильное имя репозитория<br>
+                    • GitHub API временно недоступен<br><br>
+                    <a href="https://github.com/${CONFIG.owner}/${CONFIG.repo}" style="color:#58a6ff">Открыть репозиторий на GitHub →</a></div>`;
             }
         }
         
         // ═══════════════════════════════════════════════════════
-        // Загрузка содержимого файла через raw.githubusercontent
+        // ЗАГРУЗКА СОДЕРЖИМОГО ФАЙЛА
         // ═══════════════════════════════════════════════════════
         async function loadFileContent(path) {
             if (fileContents[path]) return fileContents[path];
@@ -176,167 +196,154 @@
         }
         
         // ═══════════════════════════════════════════════════════
-        // Отображение списка файлов
+        // ОТОБРАЖЕНИЕ СПИСКА ФАЙЛОВ
         // ═══════════════════════════════════════════════════════
-        function renderFileList(filter = '') {
+        function renderFileList(searchTerm = '') {
             const filesDiv = document.getElementById('files');
-            const search = filter.toLowerCase();
+            const search = searchTerm.toLowerCase();
             
-            const filtered = allFiles.filter(f => {
-                if (!search) return true;
-                const content = fileContents[f.path] || '';
-                return f.path.toLowerCase().includes(search) || 
-                       content.toLowerCase().includes(search);
-            });
+            let filtered = allFiles;
+            
+            // Фильтр по расширению
+            if (currentExtFilter) {
+                filtered = filtered.filter(f => f.path.endsWith(currentExtFilter));
+            }
+            
+            // Фильтр по поиску
+            if (search) {
+                filtered = filtered.filter(f => f.path.toLowerCase().includes(search));
+            }
             
             if (filtered.length === 0) {
-                filesDiv.innerHTML = '<div class="loading">Ничего не найдено</div>';
+                filesDiv.innerHTML = '<div class="no-results">📭 Ничего не найдено</div>';
+                updateStatText(filtered.length);
                 return;
             }
             
             filesDiv.innerHTML = filtered.map(file => {
                 const ext = file.path.split('.').pop();
-                const lines = fileContents[file.path] ? fileContents[file.path].split('\n').length : '?';
+                const fileName = file.path.split('/').pop();
+                const dirPath = file.path.substring(0, file.path.lastIndexOf('/') + 1);
                 const size = formatBytes(file.size);
+                const safeId = hashPath(file.path);
                 
                 return `
-                    <div class="file-item" data-path="${file.path}">
-                        <div class="file-header" onclick="toggleFile('${file.path}')">
-                            <div>
-                                <span class="file-name">${escapeHtml(file.path)}</span>
-                                <span class="file-meta"> • ${ext.toUpperCase()} • ${size} • ${lines} строк</span>
+                    <div class="file-item" data-path="${escapeHtml(file.path)}">
+                        <div class="file-header" onclick="toggleFile('${safeId}', '${escapeHtml(file.path)}')">
+                            <div style="flex:1;min-width:0">
+                                <div class="path-breadcrumb">${dirPath ? escapeHtml(dirPath) : 'root/'}</div>
+                                <div style="display:flex;align-items:center;flex-wrap:wrap">
+                                    <span class="file-name">${escapeHtml(fileName)}</span>
+                                    <span class="file-meta">${ext.toUpperCase()}</span>
+                                    <span class="size-badge">${size}</span>
+                                </div>
                             </div>
-                            <span style="color: #8b949e;">▼</span>
+                            <span class="chevron" id="chevron-${safeId}">▼</span>
                         </div>
-                        <div class="file-content" id="content-${hashPath(file.path)}">
-                            <div class="loading">⏳ Загрузка...</div>
+                        <div class="file-content" id="content-${safeId}">
+                            <div class="loading" style="padding:20px"><span class="spinner"></span> Загрузка...</div>
                         </div>
                     </div>
                 `;
             }).join('');
             
-            // Обновляем счётчик найденного
-            document.getElementById('stat-text').textContent = 
-                `Показано: ${filtered.length} из ${allFiles.length} файлов`;
+            updateStatText(filtered.length);
         }
         
         // ═══════════════════════════════════════════════════════
-        // Переключение файла
+        // ПЕРЕКЛЮЧЕНИЕ ФАЙЛА
         // ═══════════════════════════════════════════════════════
-        async function toggleFile(path) {
-            const contentDiv = document.getElementById(`content-${hashPath(path)}`);
+        async function toggleFile(safeId, path) {
+            const contentDiv = document.getElementById(`content-${safeId}`);
+            const chevron = document.getElementById(`chevron-${safeId}`);
             const isActive = contentDiv.classList.contains('active');
             
             if (isActive) {
                 contentDiv.classList.remove('active');
+                chevron.classList.remove('open');
                 return;
             }
             
-            // Загружаем если ещё не загружен
+            // Загружаем содержимое
             if (!fileContents[path]) {
-                contentDiv.innerHTML = '<div class="loading">⏳ Загрузка...</div>';
-                await loadFileContent(path);
+                contentDiv.innerHTML = '<div class="loading" style="padding:20px"><span class="spinner"></span> Загрузка содержимого...</div>';
             }
             
-            // Подсвечиваем поиск если есть
+            const content = await loadFileContent(path);
             const search = document.getElementById('search').value.toLowerCase();
-            const content = fileContents[path] || '';
             
-            contentDiv.innerHTML = `<pre>${highlightCode(content, path, search)}</pre>`;
+            contentDiv.innerHTML = `<pre>${renderCode(content, search)}</pre>`;
             contentDiv.classList.add('active');
-            
-            // Прокрутка к первому совпадению
-            if (search) {
-                setTimeout(() => {
-                    const firstHighlight = contentDiv.querySelector('.highlight');
-                    if (firstHighlight) {
-                        firstHighlight.scrollIntoView({ behavior: 'smooth', block: 'center' });
-                    }
-                }, 100);
-            }
+            chevron.classList.add('open');
         }
         
         // ═══════════════════════════════════════════════════════
-        // Подсветка синтаксиса + поиск
+        // РЕНДЕР КОДА С ПОДСВЕТКОЙ
         // ═══════════════════════════════════════════════════════
-        function highlightCode(code, path, searchTerm) {
-            const lines = code.split('\n');
+        function renderCode(code, searchTerm) {
+            const lines = code.split('\\n');
             let result = '';
             
             lines.forEach((line, i) => {
                 let processed = escapeHtml(line);
                 
                 // Подсветка поиска
-                if (searchTerm) {
+                if (searchTerm && searchTerm.length > 1) {
                     const regex = new RegExp(`(${escapeRegex(searchTerm)})`, 'gi');
                     processed = processed.replace(regex, '<span class="highlight">$1</span>');
                 }
                 
-                result += `<span class="line-num">${i + 1}</span>${processed}\n`;
+                result += `<div class="line"><span class="line-num">${i + 1}</span><span style="white-space:pre">${processed}</span></div>`;
             });
             
             return result;
         }
         
         // ═══════════════════════════════════════════════════════
-        // Фильтры по расширениям
+        // ФИЛЬТРЫ ПО РАСШИРЕНИЮ
         // ═══════════════════════════════════════════════════════
         function renderFilters() {
-            const exts = [...new Set(allFiles.map(f => f.path.split('.').pop()))].sort();
+            const exts = [...new Set(allFiles.map(f => '.' + f.path.split('.').pop()))].sort();
             const container = document.getElementById('filters');
             
             container.innerHTML = [
-                '<button class="filter-btn active" onclick="filterByExt(\'\')">Все</button>',
-                ...exts.map(ext => `<button class="filter-btn" onclick="filterByExt('${ext}')">.${ext}</button>`)
+                '<button class="filter-btn active" onclick="filterByExt(\'\')">Все (' + allFiles.length + ')</button>',
+                ...exts.map(ext => {
+                    const count = allFiles.filter(f => f.path.endsWith(ext)).length;
+                    return `<button class="filter-btn" onclick="filterByExt('${ext}')">${ext} (${count})</button>`;
+                })
             ].join('');
         }
-        
-        let currentExtFilter = '';
         
         function filterByExt(ext) {
             currentExtFilter = ext;
             document.querySelectorAll('.filter-btn').forEach(btn => {
                 btn.classList.toggle('active', 
-                    (ext === '' && btn.textContent === 'Все') || btn.textContent === `.${ext}`
+                    (ext === '' && btn.textContent.startsWith('Все')) || btn.textContent.startsWith(ext)
                 );
             });
             applyFilters();
         }
         
         // ═══════════════════════════════════════════════════════
-        // Поиск
+        // ПОИСК
         // ═══════════════════════════════════════════════════════
         let searchTimeout;
         document.getElementById('search').addEventListener('input', (e) => {
             clearTimeout(searchTimeout);
-            searchTimeout = setTimeout(() => applyFilters(), 300);
+            searchTimeout = setTimeout(() => applyFilters(), 200);
         });
         
-        async function applyFilters() {
-            const search = document.getElementById('search').value.toLowerCase();
-            
-            // Если поиск по содержимому — предзагружаем все файлы
-            if (search.length > 2) {
-                const unloaded = allFiles.filter(f => !fileContents[f.path]);
-                document.getElementById('stat-text').textContent = `Загрузка ${unloaded.length} файлов для поиска...`;
-                
-                // Загружаем пачками по 5
-                for (let i = 0; i < unloaded.length; i += 5) {
-                    const batch = unloaded.slice(i, i + 5);
-                    await Promise.all(batch.map(f => loadFileContent(f.path)));
-                    document.getElementById('stat-text').textContent = 
-                        `Загружено ${i + batch.length} из ${unloaded.length}...`;
-                }
-            }
-            
+        function applyFilters() {
+            const search = document.getElementById('search').value;
             renderFileList(search);
         }
         
         // ═══════════════════════════════════════════════════════
-        // Утилиты
+        // УТИЛИТЫ
         // ═══════════════════════════════════════════════════════
         function hashPath(path) {
-            return path.replace(/[^a-zA-Z0-9]/g, '_');
+            return 'f_' + path.replace(/[^a-zA-Z0-9]/g, '_');
         }
         
         function escapeHtml(text) {
@@ -346,7 +353,7 @@
         }
         
         function escapeRegex(str) {
-            return str.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+            return str.replace(/[.*+?^${}()|[\\]\\\\]/g, '\\\\$&');
         }
         
         function formatBytes(bytes) {
@@ -357,20 +364,31 @@
         
         function expandAll() {
             allFiles.forEach(f => {
-                const div = document.getElementById(`content-${hashPath(f.path)}`);
-                if (!div.classList.contains('active')) toggleFile(f.path);
+                const safeId = hashPath(f.path);
+                const contentDiv = document.getElementById(`content-${safeId}`);
+                if (contentDiv && !contentDiv.classList.contains('active')) {
+                    toggleFile(safeId, f.path);
+                }
             });
         }
         
         function collapseAll() {
             document.querySelectorAll('.file-content').forEach(el => el.classList.remove('active'));
+            document.querySelectorAll('.chevron').forEach(el => el.classList.remove('open'));
         }
         
         function updateStats() {
             renderFilters();
-            const totalSize = allFiles.reduce((sum, f) => sum + f.size, 0);
-            document.getElementById('stat-text').textContent = 
-                `Всего файлов: ${allFiles.length} | Общий размер: ${formatBytes(totalSize)}`;
+            const totalSize = allFiles.reduce((sum, f) => sum + (f.size || 0), 0);
+            document.getElementById('stat-text').innerHTML = 
+                `📊 <strong>${allFiles.length}</strong> файлов | Общий размер: <strong>${formatBytes(totalSize)}</strong> | ` +
+                `Репозиторий: <a href="https://github.com/${CONFIG.owner}/${CONFIG.repo}" style="color:#58a6ff" target="_blank">${CONFIG.owner}/${CONFIG.repo}</a>`;
+        }
+        
+        function updateStatText(filteredCount) {
+            const total = allFiles.length;
+            if (filteredCount === total) return;
+            document.getElementById('stat-text').innerHTML += ` | Показано: <strong>${filteredCount}</strong> из ${total}`;
         }
         
         // Горячие клавиши
@@ -379,10 +397,20 @@
                 e.preventDefault();
                 document.getElementById('search').focus();
             }
+            if (e.key === 'Escape') {
+                collapseAll();
+            }
         });
         
         // Старт
         loadRepo();
     </script>
 </body>
-</html>
+</html>'''
+
+# Сохраняем файл
+with open('/mnt/agents/output/index.html', 'w', encoding='utf-8') as f:
+    f.write(html_content)
+
+print(f"Файл сохранён: /mnt/agents/output/index.html")
+print(f"Размер: {len(html_content)} байт")
